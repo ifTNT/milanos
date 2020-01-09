@@ -111,7 +111,7 @@ public class relay {
 
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
         ServerSocket server = serverChannel.socket();
-        InetSocketAddress address = new InetSocketAddress(port);
+        InetSocketAddress address = new InetSocketAddress(0);
         server.bind(address);
         serverChannel.configureBlocking(false);
         Selector selector = Selector.open();
