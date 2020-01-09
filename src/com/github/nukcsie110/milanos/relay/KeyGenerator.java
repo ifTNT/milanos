@@ -14,58 +14,72 @@ public class KeyGenerator {
     private ECPublicKey pk;
     private ECPrivateKey prik;
 
-    public KeyGenerator() throws Exception{
-        KeyPair key = getKeyPair();
-        String pK = getPublicKey(key);
-        String priK = getPrivateKey(key);
+    public KeyGenerator(){
+        KeyPair key = KeyPair();
+        String pK = PublicKey(key);
+        String priK = PrivateKey(key);
         pk = string2PublicKey(pK);
         prik = string2PrivateKey(priK);
     }
-    //生成秘钥对
-    public static KeyPair getKeyPair() throws Exception {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC", "BC");
-        keyPairGenerator.initialize(256, new SecureRandom());
-        KeyPair keyPair = keyPairGenerator.generateKeyPair();
-        return keyPair;
+
+    public static KeyPair KeyPair(){
+        try {
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC", "BC");
+            keyPairGenerator.initialize(256, new SecureRandom());
+            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            return keyPair;
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
     }
 
-    //获取公钥(Base64编码)
-    public static String getPublicKey(KeyPair keyPair){
+    public static String PublicKey(KeyPair keyPair){
         ECPublicKey publicKey = (ECPublicKey) keyPair.getPublic();
         byte[] bytes = publicKey.getEncoded();
         return AESUtil.byte2Base64(bytes);
     }
 
-    //获取私钥(Base64编码)
-    public static String getPrivateKey(KeyPair keyPair){
+    public static String PrivateKey(KeyPair keyPair){
         ECPrivateKey privateKey = (ECPrivateKey) keyPair.getPrivate();
         byte[] bytes = privateKey.getEncoded();
         return AESUtil.byte2Base64(bytes);
     }
 
-    //将Base64编码后的公钥转换成PublicKey对象
-    public static ECPublicKey string2PublicKey(String pubStr) throws Exception{
-        byte[] keyBytes = AESUtil.base642Byte(pubStr);
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-        ECPublicKey publicKey = (ECPublicKey) keyFactory.generatePublic(keySpec);
-        return publicKey;
+    public static ECPublicKey string2PublicKey(String pubStr){
+        try {
+            byte[] keyBytes = AESUtil.base642Byte(pubStr);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+            ECPublicKey publicKey = (ECPublicKey) keyFactory.generatePublic(keySpec);
+            return publicKey;
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
     }
 
-    //将Base64编码后的私钥转换成PrivateKey对象
-    public static ECPrivateKey string2PrivateKey(String priStr) throws Exception{
-        byte[] keyBytes = AESUtil.base642Byte(priStr);
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-        ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(keySpec);
-        return privateKey;
+    public static ECPrivateKey string2PrivateKey(String priStr){
+        try {
+            byte[] keyBytes = AESUtil.base642Byte(priStr);
+            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+            ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(keySpec);
+            return privateKey;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
-    public ECPublicKey PublicKey() {
+    public ECPublicKey getPublicKey() {
         return pk;
     }
 
-    public ECPrivateKey PrivateKey() {
+    public ECPrivateKey getPrivateKey() {
         return prik;
     }
 }
