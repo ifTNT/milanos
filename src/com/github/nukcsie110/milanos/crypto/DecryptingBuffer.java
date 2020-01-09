@@ -56,7 +56,7 @@ public class DecryptingBuffer implements CryptoBuffer{
             byte _se_algo_id = header.get();
             if(_se_algo_id != SE_ALGO_ID) throw new cryptoHeaderException("SEK algorithm ID mismatch: "+_se_algo_id+"!="+SE_ALGO_ID);
             int len_SEK = header.get() & 0xFF; //Get lenght of SEK and convert into unsigned integer.
-            System.out.println("Length of SEK: "+len_SEK);
+            //System.out.println("Length of SEK: "+len_SEK);
 
             //Decrypt SEK
             byte[] encrytedSEK = new byte[len_SEK];
