@@ -10,18 +10,20 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
 
 public class relay {
 
-    public byte[] myPublicKey;
-    private byte[] myPrivateKey;
+    public ECPublicKey myPublicKey;
+    private ECPrivateKey myPrivateKey;
     private byte[] mySEKey;
     private static int port = 5509;
 
-    public relay() {
+    public relay() throws Exception{
         KeyGenerator Sets = new KeyGenerator();
-        myPublicKey = Sets.getPublicKey();
-        myPrivateKey = Sets.getPrivateKey();
+        myPublicKey = Sets.PublicKey();
+        myPrivateKey = Sets.PrivateKey();
         heartBeat(myPublicKey);
     }
 
@@ -29,11 +31,11 @@ public class relay {
 
     }
 
-    private void heartBeat(byte[] myPK){
+    private void heartBeat(ECPublicKey myPK){
 
     }
 
-    public static void main(String arg[]){
+    public static void main(String arg[]) throws Exception{
         relay r = new relay();
 
         ServerSocketChannel serverChannel;
@@ -72,14 +74,16 @@ public class relay {
                     incoming.configureBlocking(false);
                     SelectionKey connetChannel = incoming.register(selector,SelectionKey.OP_READ | SelectionKey.OP_WRITE);
 
-                    ByteBuffer pktBuffer = ByteBuffer.allocate(1024 * 1024);
+                    ByteBuffer pktBuffer = ByteBuffer.allocate(1024);
                     connetChannel.attach(pktBuffer);
                 }
                 else if(readyChannel.isReadable()){
 
                 }
                 else if(readyChannel.isWritable()){
-
+                    SocketChannel outputing = (SocketChannel) readyChannel.channel();
+                    ByteBuffer outBuffer = (ByteBuffer) readyChannel.attachment();
+                    //if()
                 }
             }catch (IOException e){
                 readyChannel.cancel();
