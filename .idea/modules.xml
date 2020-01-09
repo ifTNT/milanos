@@ -2,12 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Crypto/Crypto.iml" filepath="$PROJECT_DIR$/Crypto/Crypto.iml" />
-      <module fileurl="file://$PROJECT_DIR$/Entrypoint/Entrypoint.iml" filepath="$PROJECT_DIR$/Entrypoint/Entrypoint.iml" />
-      <module fileurl="file://$PROJECT_DIR$/HeartbeatServer/HeartbeatServer.iml" filepath="$PROJECT_DIR$/HeartbeatServer/HeartbeatServer.iml" />
       <module fileurl="file://$PROJECT_DIR$/Milanos.iml" filepath="$PROJECT_DIR$/Milanos.iml" />
-      <module fileurl="file://$PROJECT_DIR$/Relay/Relay.iml" filepath="$PROJECT_DIR$/Relay/Relay.iml" />
-      <module fileurl="file://$PROJECT_DIR$/common/common.iml" filepath="$PROJECT_DIR$/common/common.iml" />
     </modules>
   </component>
 </project>
