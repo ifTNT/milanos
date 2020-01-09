@@ -52,18 +52,18 @@ public class relay {
                     return;
                 }
 
-                byte[] ip = new byte[16];
-                pkt.get(ip,16,16);
+                byte[] ip = new byte[4];
+                pkt.get(ip,16,4);
                 byte[] portOut = new byte[2];
                 ByteBuffer toInt = ByteBuffer.wrap(portOut);
-                pkt.get(portOut,32,2);
+                pkt.get(portOut,20,2);
                 InetAddress next = InetAddress.getByAddress(ip);
                 pkt.flip();
                 byte[] nextPkt = new byte[1024];
                 pkt.wrap(nextPkt);
-                out = SocketChannel.open(new InetSocketAddress(next,toInt.getInt()));
+                out = SocketChannel.open(new InetSocketAddress(next,toInt.getShort()));
                 ByteBuffer outPkt = ByteBuffer.allocate(1024);
-                outPkt.get(nextPkt,35,1024);
+                outPkt.get(nextPkt,22,1002);
                 out.write(outPkt);
                 out.register(selector,SelectionKey.OP_READ);
             }
