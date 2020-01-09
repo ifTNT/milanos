@@ -17,6 +17,7 @@ public class main {
     public static int DEFAULT_PORT = 8591;    //設定初始自己的port
 
     public static void main(String[] args) throws IOException {
+
         //run_Entry_server(DEFAULT_PORT);
         new main();
     }
