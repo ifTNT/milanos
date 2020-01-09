@@ -82,8 +82,13 @@ public class relay {
         return c;
     }
 
-    private void heartBeat(ECPublicKey myPK){
-
+    private void heartBeat(ECPublicKey myPK) throws IOException {
+        InetSocketAddress hsAddr = new InetSocketAddress(8500);
+        SocketChannel info = SocketChannel.open(hsAddr);
+        info.configureBlocking(false);
+        ByteBuffer relayInfo = ByteBuffer.allocate(256);
+        relayInfo.wrap(myPK.toString().getBytes());
+        info.write(relayInfo);
     }
 
     ArrayList<Clients> clientsGroup = new ArrayList<Clients>();
