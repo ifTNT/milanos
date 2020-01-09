@@ -32,7 +32,7 @@ public class relay {
     public ECPublicKey myPublicKey;
     private ECPrivateKey myPrivateKey;
     private byte[] mySEKey;
-    private static int port = 5509;
+    private static int port = 90;
 
     //分成連進來的client(ReadPkt、decrypted) 跟 要連出去的client(WritePkt、encrypted)
     class Clients{
@@ -52,18 +52,18 @@ public class relay {
                     return;
                 }
 
-                byte[] ip = new byte[16];
-                pkt.get(ip,16,16);
+                byte[] ip = new byte[4];
+                pkt.get(ip,16,4);
                 byte[] portOut = new byte[2];
                 ByteBuffer toInt = ByteBuffer.wrap(portOut);
-                pkt.get(portOut,32,2);
+                pkt.get(portOut,20,2);
                 InetAddress next = InetAddress.getByAddress(ip);
                 pkt.flip();
                 byte[] nextPkt = new byte[1024];
                 pkt.wrap(nextPkt);
                 out = SocketChannel.open(new InetSocketAddress(next,toInt.getInt()));
                 ByteBuffer outPkt = ByteBuffer.allocate(1024);
-                outPkt.get(nextPkt,35,1024);
+                outPkt.get(nextPkt,22,1000);
                 out.write(outPkt);
                 out.register(selector,SelectionKey.OP_READ);
             }
@@ -112,7 +112,7 @@ public class relay {
         KeyGenerator Sets = new KeyGenerator();
         myPublicKey = Sets.getPublicKey();
         myPrivateKey = Sets.getPrivateKey();
-        heartBeat(myPublicKey);
+        //heartBeat(myPublicKey);
 
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
         ServerSocket server = serverChannel.socket();
