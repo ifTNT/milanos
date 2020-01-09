@@ -45,26 +45,31 @@ public class relay {
             in.configureBlocking(false);
         }
         //連進來的
-        public void inClients(Selector selector,SelectionKey sk) throws Exception {
-            ByteBuffer pkt = ByteBuffer.allocate(1024);
-            if(in.read(pkt) < 1){
-                return;
-            }
+        public void inClients(Selector selector,SelectionKey sk){
+            try {
+                ByteBuffer pkt = ByteBuffer.allocate(1024);
+                if(in.read(pkt) < 1){
+                    return;
+                }
 
-            byte[] ip = new byte[16];
-            pkt.get(ip,16,16);
-            byte[] portOut = new byte[2];
-            ByteBuffer toInt = ByteBuffer.wrap(portOut);
-            pkt.get(portOut,32,2);
-            InetAddress next = InetAddress.getByAddress(ip);
-            pkt.flip();
-            byte[] nextPkt = new byte[1024];
-            pkt.wrap(nextPkt);
-            out = SocketChannel.open(new InetSocketAddress(next,toInt.getInt()));
-            ByteBuffer outPkt = ByteBuffer.allocate(1024);
-            outPkt.get(nextPkt,35,1024);
-            out.write(outPkt);
-            out.register(selector,SelectionKey.OP_READ);
+                byte[] ip = new byte[16];
+                pkt.get(ip,16,16);
+                byte[] portOut = new byte[2];
+                ByteBuffer toInt = ByteBuffer.wrap(portOut);
+                pkt.get(portOut,32,2);
+                InetAddress next = InetAddress.getByAddress(ip);
+                pkt.flip();
+                byte[] nextPkt = new byte[1024];
+                pkt.wrap(nextPkt);
+                out = SocketChannel.open(new InetSocketAddress(next,toInt.getInt()));
+                ByteBuffer outPkt = ByteBuffer.allocate(1024);
+                outPkt.get(nextPkt,35,1024);
+                out.write(outPkt);
+                out.register(selector,SelectionKey.OP_READ);
+            }
+            catch (Exception e){
+                e.printStackTrace();
+            }
         }
 
         public void outClients(Selector selector,SelectionKey sk) throws IOException{
@@ -88,7 +93,7 @@ public class relay {
         return c;
     }
 
-    private void heartBeat(ECPublicKey myPK) throws IOException {
+    private void heartBeat(ECPublicKey myPK) {
         try {
             Socket HS_socket = new Socket(HS_address, HS_port);
             HS_socket.setSoTimeout(5000);
@@ -103,7 +108,7 @@ public class relay {
 
     ArrayList<Clients> clientsGroup = new ArrayList<Clients>();
 
-    public relay() throws Exception,IOException{
+    public relay() throws IOException{
         KeyGenerator Sets = new KeyGenerator();
         myPublicKey = Sets.getPublicKey();
         myPrivateKey = Sets.getPrivateKey();
@@ -111,8 +116,9 @@ public class relay {
 
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
         ServerSocket server = serverChannel.socket();
-        InetSocketAddress address = new InetSocketAddress(0);
+        InetSocketAddress address = new InetSocketAddress(port);
         server.bind(address);
+        System.out.println("listening on port : " + address.getPort());
         serverChannel.configureBlocking(false);
         Selector selector = Selector.open();
         serverChannel.register(selector, SelectionKey.OP_ACCEPT);
@@ -150,7 +156,7 @@ public class relay {
                     }
                 }
             }
-        }catch (IOException ex){
+        }catch (Exception ex){
             ex.printStackTrace();
             return;
         }
@@ -158,7 +164,7 @@ public class relay {
 
     public static void main(String[] arg) throws Exception {
         relay r1 = new relay();
-        relay r2 = new relay();
-        relay r3 = new relay();
+//        relay r2 = new relay();
+//        relay r3 = new relay();
     }
 }
