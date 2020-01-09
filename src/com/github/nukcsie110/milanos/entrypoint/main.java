@@ -11,7 +11,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class main {
-    private static String HS_address = "127.0.0.1";
+    private static String HS_address = "192.168.0.102";
     private static int HS_port = 8500;
     private static ArrayList<RelayInfo> relay_list = new ArrayList<RelayInfo>();
     public static int DEFAULT_PORT = 8591;    //設定初始自己的port
