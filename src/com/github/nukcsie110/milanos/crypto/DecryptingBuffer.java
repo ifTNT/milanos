@@ -240,9 +240,10 @@ public class DecryptingBuffer implements CryptoBuffer{
         int blockSize = sessionCipher.getBlockSize();
         int originalPos = decryptedBuffer.position();
         //Process blocks of data
-        while(len-index >= blockSize) {
-            byte[] block = new byte[blockSize];
-            System.arraycopy(b, index, block, 0, blockSize);
+        while(len-index > 1) {
+            int blockLen = Math.min(blockSize, len-index);
+            byte[] block = new byte[blockLen];
+            System.arraycopy(b, index, block, 0, blockLen);
             byte[] decryptedData = sessionCipher.update(block);
             if(decryptedData!=null && decryptedData.length!=0) {
                 int data_len = decryptedData[0] & 0xFF;
@@ -251,7 +252,7 @@ public class DecryptingBuffer implements CryptoBuffer{
                 System.arraycopy(decryptedData, 1, data, 0, data.length);
                 decryptedBuffer.put(data);
             }
-            index += blockSize;
+            index += blockLen;
         }
         this._pos += decryptedBuffer.position()-originalPos;
         return this;

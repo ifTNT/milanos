@@ -6,6 +6,7 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import com.github.nukcsie110.milanos.relay.*;
 
 public class KeyGenerator {
 

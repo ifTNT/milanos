@@ -9,6 +9,9 @@ import org.bouncycastle.jce.interfaces.ECPublicKey;
 
 public class RelayInfo implements Serializable{
     public InetSocketAddress address;
-    ECPublicKey publicKey;
-    String UUID;
+    public ECPublicKey publicKey;
+    public String UUID;
+    public String toString(){
+        return address.toString()+" "+publicKey.toString();
+    }
 }
