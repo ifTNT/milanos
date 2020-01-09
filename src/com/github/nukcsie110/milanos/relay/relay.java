@@ -1,6 +1,7 @@
 package com.github.nukcsie110.milanos.relay;
 
 import com.github.nukcsie110.milanos.common.RelayInfo;
+import com.github.nukcsie110.milanos.entrypoint.main;
 import com.sun.org.apache.bcel.internal.generic.Select;
 import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 
@@ -45,31 +46,42 @@ public class relay {
             in.configureBlocking(false);
         }
         //連進來的
-        public void inClients(Selector selector,SelectionKey sk){
-            try {
+        public void inClients(Selector selector,SelectionKey sk) throws IOException{
+            if (!act) {
                 ByteBuffer pkt = ByteBuffer.allocate(1024);
-                if(in.read(pkt) < 1){
+                if (in.read(pkt) < 1) {
                     return;
                 }
 
                 byte[] ip = new byte[4];
-                pkt.get(ip,16,4);
+                System.out.println("IP " + InetAddress.getByAddress(ip));
+                pkt.get(ip, 16, 4);
                 byte[] portOut = new byte[2];
                 ByteBuffer toInt = ByteBuffer.wrap(portOut);
-                pkt.get(portOut,20,2);
+                pkt.get(portOut, 20, 2);
                 InetAddress next = InetAddress.getByAddress(ip);
                 pkt.flip();
                 byte[] nextPkt = new byte[1024];
+
+                if (!out.isConnected())
+                    throw new IOException("connect failed");
+
                 pkt.wrap(nextPkt);
-                out = SocketChannel.open(new InetSocketAddress(next,toInt.getShort()));
+                out = SocketChannel.open(new InetSocketAddress(next, toInt.getShort()));
                 ByteBuffer outPkt = ByteBuffer.allocate(1024);
-                outPkt.get(nextPkt,22,1002);
+                outPkt.get(nextPkt, 22, 1002);
 
                 out.write(outPkt);
-                out.register(selector,SelectionKey.OP_READ);
-            }
-            catch (Exception e){
-                e.printStackTrace();
+                System.out.println(outPkt);
+                out.register(selector, SelectionKey.OP_READ);
+
+                act = true;
+            }else {
+                ByteBuffer buf = ByteBuffer.allocate(1024);
+                if (in.read(buf) == -1)
+                    throw new IOException("disconnected");
+                buf.flip();
+                out.write(buf);
             }
         }
 
@@ -142,6 +154,7 @@ public class relay {
                             addCs(incoming);
                             incoming.register(selector, SelectionKey.OP_READ);
                         } else if (readyChannel.isReadable()) {
+
                             for(int i = 0; i < clientsGroup.size();i++){
                                 Clients client = clientsGroup.get(i);
                                 if(readyChannel.channel() == client.in){
