@@ -14,7 +14,7 @@ public class KeyGenerator {
     private ECPublicKey pk;
     private ECPrivateKey prik;
 
-    public KeyGenerator() throws Exception{
+    public KeyGenerator(){
         KeyPair key = KeyPair();
         String pK = PublicKey(key);
         String priK = PrivateKey(key);
@@ -22,11 +22,17 @@ public class KeyGenerator {
         prik = string2PrivateKey(priK);
     }
 
-    public static KeyPair KeyPair() throws Exception {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC", "BC");
-        keyPairGenerator.initialize(256, new SecureRandom());
-        KeyPair keyPair = keyPairGenerator.generateKeyPair();
-        return keyPair;
+    public static KeyPair KeyPair(){
+        try {
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC", "BC");
+            keyPairGenerator.initialize(256, new SecureRandom());
+            KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            return keyPair;
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public static String PublicKey(KeyPair keyPair){
@@ -41,20 +47,32 @@ public class KeyGenerator {
         return AESUtil.byte2Base64(bytes);
     }
 
-    public static ECPublicKey string2PublicKey(String pubStr) throws Exception{
-        byte[] keyBytes = AESUtil.base642Byte(pubStr);
-        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-        ECPublicKey publicKey = (ECPublicKey) keyFactory.generatePublic(keySpec);
-        return publicKey;
+    public static ECPublicKey string2PublicKey(String pubStr){
+        try {
+            byte[] keyBytes = AESUtil.base642Byte(pubStr);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+            ECPublicKey publicKey = (ECPublicKey) keyFactory.generatePublic(keySpec);
+            return publicKey;
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
     }
 
-    public static ECPrivateKey string2PrivateKey(String priStr) throws Exception{
-        byte[] keyBytes = AESUtil.base642Byte(priStr);
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
-        ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(keySpec);
-        return privateKey;
+    public static ECPrivateKey string2PrivateKey(String priStr){
+        try {
+            byte[] keyBytes = AESUtil.base642Byte(priStr);
+            PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("EC", "BC");
+            ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(keySpec);
+            return privateKey;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public ECPublicKey getPublicKey() {
