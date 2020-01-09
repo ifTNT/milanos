@@ -1,86 +1,77 @@
 package com.github.nukcsie110.milanos.hs;
 
-import java.io.IOException;
+import java.io.*;
+import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketAddress;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.net.InetSocketAddress;
-import java.util.Iterator;
-import java.util.Set;
-import java.nio.channels.SocketChannel;
-import java.nio.ByteBuffer;
+import java.util.ArrayList;;
+
 
 public class main {
-    private Selector selector;
-    private InetSocketAddress listenAddress;
-    private final static int PORT=8500;
-    public String[][] relayifo=new String[10][2];
 
-    public main(String address, int port) {
-        
+    public static class relayifo implements Serializable{
+        public ArrayList publickey=new ArrayList();
+        public ArrayList IPAddr=new ArrayList();
     }
+    public static void main(String[] args) throws IOException {
 
-    public static void main(String[] args) throws Exception {
-        new main("localhost", 8500).startServer();
-    }
+        int portNumber = 8500;
+        //bind server socket to port
+        ServerSocket serverSocket = new ServerSocket(portNumber);
+        try {
+            while (true) { //long running server
 
-    private void startServer() throws IOException {
-        this.selector=Selector.open();
-        ServerSocketChannel serverChannel=ServerSocketChannel.open();
-        serverChannel.configureBlocking(false);
+                /*Wait for the client to make a connection and when it does, create a new socket to handle the request*/
+                Socket cs = serverSocket.accept();
 
-        serverChannel.socket().bind(listenAddress);
-        serverChannel.register(this.selector,SelectionKey.OP_ACCEPT);
+                //Handle each connection in a new thread to manage concurrent users
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            ObjectOutputStream objectOutputStream=
+                                    new ObjectOutputStream(cs.getOutputStream());
+                            relayifo relayifo=new relayifo();
+                            relayifo.publickey.add("asd");
+                            relayifo.IPAddr.add("zxc");
+                            objectOutputStream.writeObject(relayifo);
+                            objectOutputStream.close();
 
 
-        while(true){
-            int ReadyCount=selector.select();
-            if (ReadyCount == 0) {
-                continue;
+
+
+                            ObjectInputStream objectInputStream=
+                                    new ObjectInputStream(cs.getInputStream());
+                            relayifo object = (relayifo) objectInputStream.readObject();
+                            objectInputStream.close();
+
+
+                            System.out.println(relayifo.publickey);
+                            System.out.println(relayifo.IPAddr);
+                            //Process client request and send back response
+//                            String request, response;
+//                            while ((request = in.readLine()) != null) {
+//                                response = processRequest(request);
+//                                out.println(response);
+//                                if ("Done".equals(request)) {
+//                                    break;
+//                                }
+//                            }
+                            cs.close();
+                        } catch (IOException | ClassNotFoundException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+                }).start();
             }
-            Set<SelectionKey>ReadyKeys=selector.selectedKeys();
-            Iterator iterator=ReadyKeys.iterator();
-            while (iterator.hasNext()){
-                SelectionKey Key= (SelectionKey) iterator.next();
-                iterator.remove();
-                if(!Key.isValid()){
-                    continue;
-                }
-                if(Key.isAcceptable()){
-                    this.accept(Key);
-                }
-                else if(Key.isReadable()){
-                    this.read(Key);
-                }
-                else if(Key.isWritable()){
-                    //data for client
-                }
-            }
+        } finally {
+            serverSocket.close();
         }
+
     }
 
-    private  void accept(SelectionKey key) throws IOException{
-        ServerSocketChannel Serverchannel= (ServerSocketChannel) key.channel();
-        SocketChannel channel = Serverchannel.accept();
-        channel.configureBlocking(false);
-        Socket socket=channel.socket();
-        SocketAddress RemoteAddr=socket.getRemoteSocketAddress();
-        channel.register(this.selector,SelectionKey.OP_READ);
-    }
-
-    private void read(SelectionKey key) throws IOException{
-        SocketChannel channel= (SocketChannel) key.channel();
-        ByteBuffer buffer=ByteBuffer.allocate(1024);
-        int read=0;
-        read=channel.read(buffer);
-        if(read==0){
-            Socket socket=channel.socket();
-            SocketAddress RemoteAddr=socket.getRemoteSocketAddress();
-            channel.close();
-            return;
-        }
-        String data = new String(buffer.array()).trim();
-    }
+//    public static String processRequest(String request) {
+//        System.out.println("Server receive message from > " + request);
+//        return request;
+//    }
 }
