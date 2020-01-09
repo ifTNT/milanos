@@ -244,16 +244,8 @@ public class main {
                 ByteBuffer ttemp = ByteBuffer.allocate(1024);
                 ttemp = CHAAAAA.CH_AND_PA(remoteAddr,port,payload);
                 int first = CHAAAAA.get_three();
-//                remote = SocketChannel.open(new InetSocketAddress(remoteAddr, port));
-//                remote = SocketChannel.open(new InetSocketAddress(relay_list.get(first).address.getAddress(), relay_list.get(first).address.getPort()));
                 remote = SocketChannel.open(new InetSocketAddress(90));
                 System.out.println("Relayyyyyyyyyyyyyyy");
-//                ByteBuffer out = ByteBuffer.allocate(4096);
-////                out.put((byte) 0);
-////                out.put((byte) (remote.isConnected() ? 0x5a : 0x5b));
-////                out.putShort((short) port);
-////                out.put(remoteAddr.getAddress());
-////                out.flip();
                 ttemp.flip();
                 client.write(ttemp);
 

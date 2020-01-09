@@ -1,6 +1,7 @@
 package com.github.nukcsie110.milanos.relay;
 
 import com.github.nukcsie110.milanos.common.*;
+import com.github.nukcsie110.milanos.entrypoint.main;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -32,19 +33,20 @@ public class relay {
     class Clients{
         public SocketChannel in,out;
         //預設都是連進來的channel
-        boolean act = false;
+        boolean act;
 
         public Clients(SocketChannel s) throws IOException{
             in = s;
             in.configureBlocking(false);
         }
         //連進來的
-        public void inClients(Selector selector,SelectionKey sk){
-            try {
+        public void inClients(Selector selector,SelectionKey sk) throws IOException{
+            if(!act) {
                 ByteBuffer pkt = ByteBuffer.allocate(1024);
                 if(in.read(pkt) < 1){
                     return;
                 }
+                pkt.flip();
 
                 byte[] ip = new byte[4];
                 pkt.get(ip,16,4);
@@ -52,18 +54,27 @@ public class relay {
                 ByteBuffer toInt = ByteBuffer.wrap(portOut);
                 pkt.get(portOut,20,2);
                 InetAddress next = InetAddress.getByAddress(ip);
-                pkt.flip();
                 byte[] nextPkt = new byte[1024];
-                pkt.wrap(nextPkt);
+                while ((pkt.get()) != 0){
+                    pkt.get(nextPkt,22,1002);
+                }
                 out = SocketChannel.open(new InetSocketAddress(next,toInt.getShort()));
                 ByteBuffer outPkt = ByteBuffer.allocate(1024);
-                outPkt.get(nextPkt,22,1002);
+                outPkt.get(nextPkt);
 
-                out.write(outPkt);
-                out.register(selector,SelectionKey.OP_READ);
-            }
-            catch (Exception e){
-                e.printStackTrace();
+                if (!out.isConnected())
+                    throw new IOException("connect failed");
+
+                out.configureBlocking(false);
+                out.register(selector, SelectionKey.OP_READ);
+
+                act = true;
+            } else {
+                ByteBuffer buf = ByteBuffer.allocate(1024);
+                if (in.read(buf) == -1)
+                    throw new IOException("disconnected");
+                buf.flip();
+                out.write(buf);
             }
         }
 
@@ -126,28 +137,26 @@ public class relay {
                 Iterator<SelectionKey> iterator = readys.iterator();
                 while (iterator.hasNext()) {
                     SelectionKey readyChannel = iterator.next();
-                    iterator.remove();
-                    try {
-                        if (readyChannel.isAcceptable()) {
-                            ServerSocketChannel s = (ServerSocketChannel) readyChannel.channel();
-                            SocketChannel incoming = s.accept();
-                            System.out.println("Connected from : " + incoming);
-                            if(incoming == null) continue;
-                            addCs(incoming);
-                            incoming.register(selector, SelectionKey.OP_READ);
-                        } else if (readyChannel.isReadable()) {
-                            for(int i = 0; i < clientsGroup.size();i++){
-                                Clients client = clientsGroup.get(i);
-                                if(readyChannel.channel() == client.in){
-                                    client.inClients(selector,readyChannel);
-                                }
-                                else if(readyChannel.channel() == client.out){
-                                    client.outClients(selector,readyChannel);
-                                }
+                    if (!readyChannel.isValid())
+                        continue;
+
+                    if (readyChannel.isAcceptable()) {
+                        ServerSocketChannel s = (ServerSocketChannel) readyChannel.channel();
+                        SocketChannel incoming = s.accept();
+                        System.out.println("Connected from : " + incoming);
+                        if (incoming == null)
+                            continue;
+                        addCs(incoming);
+                        incoming.register(selector, SelectionKey.OP_READ);
+                    } else if (readyChannel.isReadable()) {
+                        for (int i = 0; i < clientsGroup.size(); i++) {
+                            Clients client = clientsGroup.get(i);
+                            if (readyChannel.channel() == client.in) {
+                                client.inClients(selector, readyChannel);
+                            } else if (readyChannel.channel() == client.out) {
+                                client.outClients(selector, readyChannel);
                             }
                         }
-                    } catch (IOException e) {
-
                     }
                 }
             }
