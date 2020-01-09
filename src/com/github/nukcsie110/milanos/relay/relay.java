@@ -1,29 +1,23 @@
 package com.github.nukcsie110.milanos.relay;
 
-import com.github.nukcsie110.milanos.common.RelayInfo;
-import com.sun.org.apache.bcel.internal.generic.Select;
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
+import com.github.nukcsie110.milanos.common.*;
 
-import javax.swing.event.CaretListener;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.*;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Set;
 
 public class relay {
 
@@ -61,9 +55,10 @@ public class relay {
                 pkt.flip();
                 byte[] nextPkt = new byte[1024];
                 pkt.wrap(nextPkt);
-                out = SocketChannel.open(new InetSocketAddress(next,toInt.getInt()));
+                out = SocketChannel.open(new InetSocketAddress(next,toInt.getShort()));
                 ByteBuffer outPkt = ByteBuffer.allocate(1024);
-                outPkt.get(nextPkt,22,1000);
+                outPkt.get(nextPkt,22,1002);
+
                 out.write(outPkt);
                 out.register(selector,SelectionKey.OP_READ);
             }
