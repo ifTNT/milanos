@@ -15,8 +15,8 @@ public class main {
     public static int DEFAULT_PORT = 8591;    //設定初始自己的port
 
     public static void main(String[] args) throws IOException {
-        run_Entry_server(DEFAULT_PORT);
-
+        //run_Entry_server(DEFAULT_PORT);
+        new main();
     }
 
     private static byte[] generateByteSeed(int size){
@@ -37,14 +37,17 @@ public class main {
 
             ObjectInputStream in = new ObjectInputStream(HS_socket.getInputStream());
             relay_list = (ArrayList<RelayInfo>) in.readObject();
-            InputStream input = HS_socket.getInputStream();
+
+            HS_socket.close();
+
         } catch (IOException | ClassNotFoundException ex) {
             System.out.println(ex);
         }
     }
 
-    private static byte[] CH_AND_PA(byte[] payload) {
-        byte[] output = new byte[1024];
+    private static byte[] CH_AND_PA(InetAddress Des_IP, byte[] payload) {
+        byte[] output = new byte[4096];
+        byte[] d_b_address = Des_IP.getAddress();
         int[] rand_array = new int[3];    //決定要走哪三個relay
         ArrayList<byte[]> SEK_list = new ArrayList<byte[]>(3);    //存放的3把key
         //生rand出來
@@ -56,6 +59,8 @@ public class main {
             byte[] sek = generateByteSeed(256);
             SEK_list.add(i, sek);
         }
+        byte[] first_relay = new byte[48];
+
         //開始包header
         byte[] CID = new byte[128];
         byte[] TTL = new byte[8];
@@ -64,17 +69,18 @@ public class main {
             RelayInfo temp = relay_list.get(i);
             int port = temp.address.getPort();
             InetAddress t_addr = temp.address.getAddress();
-            byte[] b_address = t_addr.getAddress();
+            byte[] b_address = t_addr.getAddress();    //IPv4 32-bits
             byte[] b_port = ByteBuffer.allocate(16).putInt(port).array();    //port 16-bytes
             System.arraycopy(CID,0,header,0,CID.length);
-            System.arraycopy(b_address,32,header,128,b_address.length);
-            System.arraycopy(b_port,16,header,160,b_port.length);
-            System.arraycopy(TTL,8,header,176,TTL.length);
+            System.arraycopy(b_address,0,header,128,b_address.length);
+            System.arraycopy(b_port,0,header,160,b_port.length);
+            System.arraycopy(TTL,0,header,176,TTL.length);
             //call詠翔function
 
-        }
-        return output;
+
     }
+        return 02020202 + output;
+}
 
 
     private static void run_Entry_server(int port) throws IOException {    //啟動server
@@ -134,4 +140,194 @@ public class main {
             }
         }
     }
+
+
+    ////加入的
+    class SocksClient {
+        SocketChannel client, remote;
+        boolean connected;
+        long lastData = 0;
+
+        SocksClient(SocketChannel c) throws IOException {
+            client = c;
+            client.configureBlocking(false);
+            lastData = System.currentTimeMillis();
+        }
+
+        public void newRemoteData(Selector selector, SelectionKey sk) throws IOException {
+            ByteBuffer buf = ByteBuffer.allocate(1024);
+            if(remote.read(buf) == -1)
+                throw new IOException("disconnected");
+            lastData = System.currentTimeMillis();
+            buf.flip();
+            client.write(buf);
+        }
+
+        public void newClientData(Selector selector, SelectionKey sk) throws IOException {
+            if(!connected) {
+                ByteBuffer inbuf = ByteBuffer.allocate(1024);
+                if(client.read(inbuf)<1)
+                    return;
+                inbuf.flip();
+
+                // read socks header
+                int ver = inbuf.get();
+                if (ver != 4) {
+                    throw new IOException("incorrect version" + ver);
+                }
+                int cmd = inbuf.get();
+
+                // check supported command
+                if (cmd != 1) {
+                    throw new IOException("incorrect version");
+                }
+
+                final int port = inbuf.getShort();
+
+                final byte ip[] = new byte[4];
+                // fetch IP
+                inbuf.get(ip);
+
+                InetAddress remoteAddr = InetAddress.getByAddress(ip);
+
+                while ((inbuf.get()) != 0) ; // username
+
+                // hostname provided, not IP
+                if (ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] != 0) { // host provided
+                    String host = "";
+                    byte b;
+                    while ((b = inbuf.get()) != 0) {
+                        host += b;
+                    }
+                    remoteAddr = InetAddress.getByName(host);
+                    System.out.println(host + remoteAddr);
+                }
+                CH_AND_PA();
+                remote = SocketChannel.open(new InetSocketAddress(remoteAddr, port));
+
+                ByteBuffer out = ByteBuffer.allocate(1024);
+                out.put((byte)0);
+                out.put((byte) (remote.isConnected() ? 0x5a : 0x5b));
+                out.putShort((short) port);
+                out.put(remoteAddr.getAddress());
+                out.flip();
+                client.write(out);
+
+                if(!remote.isConnected())
+                    throw new IOException("connect failed");
+
+                remote.configureBlocking(false);
+                remote.register(selector, SelectionKey.OP_READ);
+
+                connected = true;
+            } else {
+                ByteBuffer buf = ByteBuffer.allocate(1024);
+                if(client.read(buf) == -1)
+                    throw new IOException("disconnected");
+                lastData = System.currentTimeMillis();
+                buf.flip();
+                remote.write(buf);
+            }
+        }
+    }
+
+    private static ArrayList <SocksClient> clients = new ArrayList<SocksClient>();
+
+    // utility function
+    public SocksClient addClient(SocketChannel s) {
+        SocksClient cl;
+        try {
+            cl = new SocksClient(s);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+        clients.add(cl);
+        return cl;
+    }
+
+    public main() throws IOException {
+        ServerSocketChannel socks = ServerSocketChannel.open();
+        socks.socket().bind(new InetSocketAddress(DEFAULT_PORT));
+        socks.configureBlocking(false);
+        Selector select = Selector.open();
+        socks.register(select, SelectionKey.OP_ACCEPT);
+
+        int lastClients = clients.size();
+        // select loop
+        HS_get_relay_list();
+        while(true) {
+
+            select.select(1000);
+
+            Set keys = select.selectedKeys();
+            Iterator iterator = keys.iterator();
+            while (iterator.hasNext()) {
+                SelectionKey k = (SelectionKey) iterator.next();
+
+                if (!k.isValid())
+                    continue;
+
+                // new connection?
+                if (k.isAcceptable() && k.channel() == socks) {
+                    // server socket
+                    SocketChannel csock = socks.accept();
+                    if (csock == null)
+                        continue;
+                    addClient(csock);
+                    csock.register(select, SelectionKey.OP_READ);
+
+                } else if (k.isReadable()) {
+                    // new data on a client/remote socket
+                    for (int i = 0; i < clients.size(); i++) {
+                        SocksClient cl = clients.get(i);
+                        try {
+                            if (k.channel() == cl.client) // from client (e.g. socks client)
+                                cl.newClientData(select, k);
+                            else if (k.channel() == cl.remote) {  // from server client is connected to (e.g. website)
+                                cl.newRemoteData(select, k);
+                            }
+                        } catch (IOException e) { // error occurred - remove client
+                            cl.client.close();
+                            if (cl.remote != null)
+                                cl.remote.close();
+                            k.cancel();
+                            clients.remove(cl);
+                        }
+
+                    }
+                }
+            }
+
+            // client timeout check
+            for (int i = 0; i < clients.size(); i++) {
+                SocksClient cl = clients.get(i);
+                if((System.currentTimeMillis() - cl.lastData) > 30000L) {
+                    cl.client.close();
+                    if(cl.remote != null)
+                        cl.remote.close();
+                    clients.remove(cl);
+                }
+            }
+            if(clients.size() != lastClients) {
+                System.out.println(clients.size());
+                lastClients = clients.size();
+            }
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
