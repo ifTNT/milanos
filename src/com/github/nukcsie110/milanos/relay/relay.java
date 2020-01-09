@@ -22,8 +22,8 @@ public class relay {
 
     public relay() throws Exception{
         KeyGenerator Sets = new KeyGenerator();
-        myPublicKey = Sets.PublicKey();
-        myPrivateKey = Sets.PrivateKey();
+        myPublicKey = Sets.getPublicKey();
+        myPrivateKey = Sets.getPrivateKey();
         heartBeat(myPublicKey);
     }
 
