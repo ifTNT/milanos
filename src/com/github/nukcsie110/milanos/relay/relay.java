@@ -1,13 +1,18 @@
 package com.github.nukcsie110.milanos.relay;
 
+import com.github.nukcsie110.milanos.common.RelayInfo;
 import com.sun.org.apache.bcel.internal.generic.Select;
 import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 
 import javax.swing.event.CaretListener;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.*;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -22,6 +27,8 @@ import java.security.interfaces.ECPublicKey;
 
 public class relay {
 
+    private static String HS_address = "127.0.0.1";
+    private static int HS_port = 8500;
     public ECPublicKey myPublicKey;
     private ECPrivateKey myPrivateKey;
     private byte[] mySEKey;
@@ -58,7 +65,6 @@ public class relay {
             outPkt.get(nextPkt,35,1024);
             out.write(outPkt);
             out.register(selector,SelectionKey.OP_READ);
-            new relay(toInt.getInt());
         }
 
         public void outClients(Selector selector,SelectionKey sk) throws IOException{
@@ -83,17 +89,21 @@ public class relay {
     }
 
     private void heartBeat(ECPublicKey myPK) throws IOException {
-        InetSocketAddress hsAddr = new InetSocketAddress(8500);
-        SocketChannel info = SocketChannel.open(hsAddr);
-        info.configureBlocking(false);
-        ByteBuffer relayInfo = ByteBuffer.allocate(256);
-        relayInfo.wrap(myPK.toString().getBytes());
-        info.write(relayInfo);
+        try {
+            Socket HS_socket = new Socket(HS_address, HS_port);
+            HS_socket.setSoTimeout(5000);
+            ObjectOutputStream os= new ObjectOutputStream(HS_socket.getOutputStream());
+            os.writeObject(myPK);
+            os.close();
+            HS_socket.close();
+        } catch (IOException ex) {
+            System.out.println(ex);
+        }
     }
 
     ArrayList<Clients> clientsGroup = new ArrayList<Clients>();
 
-    public relay(int port) throws Exception,IOException{
+    public relay() throws Exception,IOException{
         KeyGenerator Sets = new KeyGenerator();
         myPublicKey = Sets.getPublicKey();
         myPrivateKey = Sets.getPrivateKey();
@@ -147,6 +157,8 @@ public class relay {
     }
 
     public static void main(String[] arg) throws Exception {
-        relay r = new relay(port);
+        relay r1 = new relay();
+        relay r2 = new relay();
+        relay r3 = new relay();
     }
 }
