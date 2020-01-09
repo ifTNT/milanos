@@ -38,7 +38,7 @@ public class relay {
             in.configureBlocking(false);
         }
         //連進來的
-        public void inClients(Selector selector,SelectionKey sk) throws IOException {
+        public void inClients(Selector selector,SelectionKey sk) throws Exception {
             ByteBuffer pkt = ByteBuffer.allocate(1024);
             if(in.read(pkt) < 1){
                 return;
@@ -58,6 +58,7 @@ public class relay {
             outPkt.get(nextPkt,35,1024);
             out.write(outPkt);
             out.register(selector,SelectionKey.OP_READ);
+            new relay(toInt.getInt());
         }
 
         public void outClients(Selector selector,SelectionKey sk) throws IOException{
@@ -87,7 +88,7 @@ public class relay {
 
     ArrayList<Clients> clientsGroup = new ArrayList<Clients>();
 
-    public relay() throws Exception,IOException{
+    public relay(int port) throws Exception,IOException{
         KeyGenerator Sets = new KeyGenerator();
         myPublicKey = Sets.getPublicKey();
         myPrivateKey = Sets.getPrivateKey();
@@ -141,6 +142,6 @@ public class relay {
     }
 
     public static void main(String[] arg) throws Exception {
-        relay r = new relay();
+        relay r = new relay(port);
     }
 }
