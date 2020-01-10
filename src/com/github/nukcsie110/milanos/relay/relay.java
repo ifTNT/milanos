@@ -6,10 +6,7 @@ import com.github.nukcsie110.milanos.entrypoint.main;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -64,30 +61,65 @@ public class relay {
 //                    pkt.get(nextPkt,22,1002);
 //                }
                 System.out.println("Connected to: "+new InetSocketAddress(next, portOut));
-                out = SocketChannel.open(new InetSocketAddress(next,portOut));
+                try {
+                    out = SocketChannel.open(new InetSocketAddress(next, portOut));
+                    out.configureBlocking(false);
+                    out.register(selector, SelectionKey.OP_READ);
+
+                    act = true;
+                }catch(ConnectException e){
+                    System.out.println("Connected to "+new InetSocketAddress(next, portOut)+" Failed");
+                    in.close();
+                    out.close();
+                }
                 //ByteBuffer outPkt = ByteBuffer.allocate(1024);
                 //outPkt.get(nextPkt);
 
-                if (!out.isConnected())
-                    throw new IOException("connect failed");
-
-                out.configureBlocking(false);
-                out.register(selector, SelectionKey.OP_READ);
-
-                act = true;
+//                if (!out.isConnected())
+//                    throw new IOException("connect failed");
             } else {
                 ByteBuffer buf = ByteBuffer.allocate(1024);
-                if (in.read(buf) == -1)
-                    throw new IOException("disconnected");
+                if (in.read(buf) < 1){
+                    return;
+                }
                 buf.flip();
                 out.write(buf);
             }
         }
 
         public void outClients(Selector selector,SelectionKey sk) throws IOException{
+//            ByteBuffer pkt = ByteBuffer.allocate(23);
+//            if(out.read(pkt) < 1){
+//                return;
+//            }
+//            pkt.flip();
+//            System.out.println(pkt.remaining());
+//
+//            byte[] cid = new byte[16];
+//            byte[] ip = new byte[4];
+//            short portOut = 0;
+//            pkt.get(cid).get(ip);
+//            portOut = pkt.getShort();
+//            pkt.get(); //TTE (discarded)
+//
+//            InetAddress next = InetAddress.getByAddress(ip);
+//            //byte[] nextPkt = new byte[1024];
+////                while ((pkt.get()) != 0){
+////                    pkt.get(nextPkt,22,1002);
+////                }
+//            System.out.println("Connected to: "+new InetSocketAddress(next, portOut));
+//            in = SocketChannel.open(new InetSocketAddress(next,portOut));
+//            //ByteBuffer outPkt = ByteBuffer.allocate(1024);
+//            //outPkt.get(nextPkt);
+//
+//            if (!in.isConnected())
+//                throw new IOException("connect failed");
+
+            //in.configureBlocking(false);
+            //in.register(selector, SelectionKey.OP_READ);
             ByteBuffer outcome = ByteBuffer.allocate(1024);
-            if(in.read(outcome) == -1){
-                throw new IOException();
+            if(out.read(outcome) < 1){
+                return;
             }
             outcome.flip();
             in.write(outcome);
