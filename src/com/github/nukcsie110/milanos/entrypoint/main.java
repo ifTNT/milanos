@@ -9,10 +9,22 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class main {
-    private static String HS_address = "192.168.0.102";
+    private static String HS_address = "192.168.43.176";
     private static int HS_port = 8500;
     private static ArrayList<RelayInfo> relay_list = new ArrayList<RelayInfo>();
     public static int DEFAULT_PORT = 8591;    //設定初始自己的port
+
+    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 3];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 3] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 3 + 1] = HEX_ARRAY[v & 0x0F];
+            hexChars[j * 3 + 2] = ' ';
+        }
+        return new String(hexChars);
+    }
 
     public static void main(String[] args) throws IOException {
 //        RelayInfo test_relay = new RelayInfo();
@@ -121,13 +133,20 @@ public class main {
 
         }
         public void newRemoteData(Selector selector, SelectionKey sk) throws IOException {
-            ByteBuffer buf = ByteBuffer.allocate(4096);
-            System.out.println("in remote");
-            if (remote.read(buf) == -1)
-                throw new IOException("disconnected");
-
+            ByteBuffer buf = ByteBuffer.allocate(1024);
+            //System.out.println("in remote");
+            if (remote.read(buf) < 1)
+                return;
+//            while ((buf.get()) != 0){
+//                buf.get(payload,4,500);
+//            }
+//
             buf.flip();
-            client.write(buf);
+            byte[] test = new byte[buf.remaining()];
+            buf.get(test);
+
+            System.out.println("buf.remaining : "  + bytesToHex(test));
+            client.write(ByteBuffer.wrap(test));
         }
 
         public void newClientData(Selector selector, SelectionKey sk) throws IOException {
@@ -155,10 +174,10 @@ public class main {
                 System.out.println();
                 System.out.println("IP "+InetAddress.getByAddress(ip));
                 InetAddress remoteAddr = InetAddress.getByAddress(ip);
-                byte[] payload = new byte[512];
-                while ((inbuf.get()) != 0){
-                    inbuf.get(payload,4,500);
-                } ; // username
+//                byte[] payload = new byte[512];
+//                while ((inbuf.get()) != 0){
+//                    inbuf.get(payload,4,500);
+//                } ; // username
 
                 // hostname provided, not IP
                 if (ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] != 0) { // host provided
@@ -171,28 +190,39 @@ public class main {
                 }    //get des IP
 
 
-                ByteBuffer Send_header = ByteBuffer.allocate(1024);    //要送出的header
+                //ByteBuffer Send_header = ByteBuffer.allocate(1024);    //要送出的header
                 byte[] combinedHeader = header_combine.APPEND_3HEADER(remoteAddr,des_port);
+                ByteBuffer Send_header = ByteBuffer.wrap(combinedHeader);
                 Send_header.put(combinedHeader);
                 Send_header.flip();
                 int first_relay_index = header_combine.get_three();    //取得要連線的first_relay
                 remote = SocketChannel.open(new InetSocketAddress(relay_list.get(first_relay_index).address.getAddress(), relay_list.get(first_relay_index).address.getPort()));
                 System.out.println("toRelay");
 
-                ByteBuffer out_payload = ByteBuffer.allocate(4096);    //要傳出的payload
+                //ByteBuffer out_payload = ByteBuffer.wrap(payload);    //要傳出的payload
 
-                if(state == 0) {
+                //f(state == 0) {
                     remote.write(Send_header);
-                    state = 1;
-                    System.out.println("HEARED DONE" + Send_header);
-                }
+                //    state = 1;
+                    System.out.println("HEARED SEND DONE" + Send_header);
+               // }
 
-                out_payload.put(payload);
-                out_payload.flip();
-                remote.write(out_payload);
-                System.out.println("Payload done" + out_payload);
-                if (!remote.isConnected())
-                    throw new IOException("connect failed");
+//                out_payload.put(payload);
+//                out_payload.flip();
+                //remote.write(out_payload);
+                //System.out.println("Payload send done" + bytesToHex(payload));
+//                if (!remote.isConnected())
+//                    throw new IOException("connect failed");
+
+                ByteBuffer responseToClient = ByteBuffer.allocate(8);
+                responseToClient.put(new Integer(0).byteValue());
+                responseToClient.put(new Integer(90).byteValue());
+                responseToClient.putShort(des_port);
+                responseToClient.put(ip);
+
+                responseToClient.flip();
+                client.write(responseToClient);
+
 
                 remote.configureBlocking(false);
                 remote.register(selector, SelectionKey.OP_READ);
@@ -200,11 +230,18 @@ public class main {
                 connected = true;
             } else {
                 ByteBuffer buf = ByteBuffer.allocate(1024);
-                if (client.read(buf) == -1)
-                    throw new IOException("disconnected");
+                if (client.read(buf) < 1){
+                    return;
+                }
 
                 buf.flip();
-                remote.write(buf);
+
+                byte[] test = new byte[buf.remaining()];
+                buf.get(test);
+
+                System.out.println("buf.remaining : "  + bytesToHex(test));
+
+                remote.write(ByteBuffer.wrap(test));
             }
         }
     }
@@ -248,7 +285,7 @@ public class main {
 
                 // new connection?
                 if (k.isAcceptable() && k.channel() == socks) {
-                    System.out.println("isAcceptable");
+//                    System.out.println("isAcceptable");
                     // server socket
                     SocketChannel csock = socks.accept();
                     if (csock == null)
@@ -257,8 +294,8 @@ public class main {
                     csock.register(select, SelectionKey.OP_READ);
 
                 } else if (k.isReadable()) {
-                    System.out.println("isreadtable");
-                    System.out.println(k.channel());
+//                    System.out.println("isreadtable");
+//                    System.out.println(k.channel());
                     // new data on a client/remote socket
                     for (int i = 0; i < clients.size(); i++) {
                         SocksClient cl = clients.get(i);
