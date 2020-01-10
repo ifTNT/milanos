@@ -3,6 +3,7 @@ package com.github.nukcsie110.milanos.relay;
 import com.github.nukcsie110.milanos.common.*;
 import com.github.nukcsie110.milanos.entrypoint.main;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
@@ -14,11 +15,12 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.security.interfaces.ECPrivateKey;
-import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
+
+import org.bouncycastle.jce.interfaces.ECPublicKey;
+import org.bouncycastle.jce.interfaces.ECPrivateKey;
 
 public class relay {
 
@@ -27,7 +29,7 @@ public class relay {
     public ECPublicKey myPublicKey;
     private ECPrivateKey myPrivateKey;
     private byte[] mySEKey;
-    private static int port = 90;
+    private int port;
 
     //分成連進來的client(ReadPkt、decrypted) 跟 要連出去的client(WritePkt、encrypted)
     class Clients{
@@ -37,30 +39,34 @@ public class relay {
 
         public Clients(SocketChannel s) throws IOException{
             in = s;
-            in.configureBlocking(false);
+            act = false;
         }
         //連進來的
         public void inClients(Selector selector,SelectionKey sk) throws IOException{
             if(!act) {
-                ByteBuffer pkt = ByteBuffer.allocate(1024);
+                ByteBuffer pkt = ByteBuffer.allocate(23);
                 if(in.read(pkt) < 1){
                     return;
                 }
                 pkt.flip();
+                System.out.println(pkt.remaining());
 
+                byte[] cid = new byte[16];
                 byte[] ip = new byte[4];
-                pkt.get(ip,16,4);
-                byte[] portOut = new byte[2];
-                ByteBuffer toInt = ByteBuffer.wrap(portOut);
-                pkt.get(portOut,20,2);
+                short portOut = 0;
+                pkt.get(cid).get(ip);
+                portOut = pkt.getShort();
+                pkt.get(); //TTE (discarded)
+
                 InetAddress next = InetAddress.getByAddress(ip);
-                byte[] nextPkt = new byte[1024];
-                while ((pkt.get()) != 0){
-                    pkt.get(nextPkt,22,1002);
-                }
-                out = SocketChannel.open(new InetSocketAddress(next,toInt.getShort()));
-                ByteBuffer outPkt = ByteBuffer.allocate(1024);
-                outPkt.get(nextPkt);
+                //byte[] nextPkt = new byte[1024];
+//                while ((pkt.get()) != 0){
+//                    pkt.get(nextPkt,22,1002);
+//                }
+                System.out.println("Connected to: "+new InetSocketAddress(next, portOut));
+                out = SocketChannel.open(new InetSocketAddress(next,portOut));
+                //ByteBuffer outPkt = ByteBuffer.allocate(1024);
+                //outPkt.get(nextPkt);
 
                 if (!out.isConnected())
                     throw new IOException("connect failed");
@@ -103,8 +109,21 @@ public class relay {
         try {
             Socket HS_socket = new Socket(HS_address, HS_port);
             HS_socket.setSoTimeout(5000);
+
+            DataOutputStream cmd = new DataOutputStream(HS_socket.getOutputStream());
+            cmd.writeByte(0x01); //Post
+
+            Socket socket = new Socket();
+            socket.connect(new InetSocketAddress("google.com", 80)); //In order to get outbound ip address
+
+            RelayInfo myInfo = new RelayInfo();
+            myInfo.address = new InetSocketAddress(socket.getLocalAddress(), port);
+            myInfo.publicKey = myPublicKey;
             ObjectOutputStream os= new ObjectOutputStream(HS_socket.getOutputStream());
-            os.writeObject(myPK);
+            os.writeObject(myInfo);
+
+            socket.close();
+            cmd.close();
             os.close();
             HS_socket.close();
         } catch (IOException ex) {
@@ -114,11 +133,12 @@ public class relay {
 
     ArrayList<Clients> clientsGroup = new ArrayList<Clients>();
 
-    public relay() throws IOException{
+    public relay(int _port) throws IOException{
+        port = _port;
         KeyGenerator Sets = new KeyGenerator();
         myPublicKey = Sets.getPublicKey();
         myPrivateKey = Sets.getPrivateKey();
-        //heartBeat(myPublicKey);
+        heartBeat(myPublicKey);
 
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
         ServerSocket server = serverChannel.socket();
@@ -137,12 +157,14 @@ public class relay {
                 Iterator<SelectionKey> iterator = readys.iterator();
                 while (iterator.hasNext()) {
                     SelectionKey readyChannel = iterator.next();
+                    iterator.remove();
                     if (!readyChannel.isValid())
                         continue;
 
                     if (readyChannel.isAcceptable()) {
                         ServerSocketChannel s = (ServerSocketChannel) readyChannel.channel();
                         SocketChannel incoming = s.accept();
+                        incoming.configureBlocking(false);
                         System.out.println("Connected from : " + incoming);
                         if (incoming == null)
                             continue;
@@ -167,7 +189,8 @@ public class relay {
     }
 
     public static void main(String[] arg) throws Exception {
-        relay r1 = new relay();
+        int port = Integer.parseInt(arg[0]);
+        relay r1 = new relay(port);
 //        relay r2 = new relay();
 //        relay r3 = new relay();
     }
