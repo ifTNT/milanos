@@ -180,6 +180,7 @@ public class main {
                 System.out.println("toRelay");
 
                 ByteBuffer out_payload = ByteBuffer.allocate(4096);    //要傳出的payload
+
                 if(state == 0) {
                     remote.write(Send_header);
                     state = 1;
