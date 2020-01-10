@@ -1,7 +1,5 @@
 package com.github.nukcsie110.milanos.entrypoint;
-
 import com.github.nukcsie110.milanos.common.*;
-
 import java.net.*;
 import java.nio.*;
 import java.nio.channels.*;
@@ -11,16 +9,28 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class main {
-    private static String HS_address = "192.168.0.102";
+    private static String HS_address = "192.168.43.176";
     private static int HS_port = 8500;
     private static ArrayList<RelayInfo> relay_list = new ArrayList<RelayInfo>();
     public static int DEFAULT_PORT = 8591;    //設定初始自己的port
 
+    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 3];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 3] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 3 + 1] = HEX_ARRAY[v & 0x0F];
+            hexChars[j * 3 + 2] = ' ';
+        }
+        return new String(hexChars);
+    }
+
     public static void main(String[] args) throws IOException {
-        RelayInfo test_relay = new RelayInfo();
-        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLocalHost(),90);
-        test_relay.address = sa;
-        relay_list.add(test_relay);
+//        RelayInfo test_relay = new RelayInfo();
+//        InetSocketAddress sa = new InetSocketAddress(InetAddress.getLocalHost(),90);
+//        test_relay.address = sa;
+//        relay_list.add(test_relay);
         new main();
     }
 
@@ -40,6 +50,10 @@ public class main {
 
             ObjectInputStream in = new ObjectInputStream(HS_socket.getInputStream());
             relay_list = (ArrayList<RelayInfo>) in.readObject();
+            System.out.println("relay_list size : "+relay_list.size());
+            for(RelayInfo i:relay_list){
+                System.out.println(i.address.getPort());
+            }
             out.close();
             in.close();
             HS_socket.close();
@@ -49,47 +63,33 @@ public class main {
         }
     }
 
-    private static class CHAAAAA {
+    private static class header_combine {
         private static int[] rand_array = new int[3];    //決定要走哪三個relay
         private static byte[] CID = new byte[16];
         private static byte[] TTL = new byte[1];
-
-
         public static int get_three(){
-            return  rand_array[2];
+            return  rand_array[0];
         }
-        public static ByteBuffer make_header(byte[]  adr,byte[] port){
+        public static byte[] make_header(byte[]  adr,byte[] port){
             ByteBuffer header = ByteBuffer.allocate(23);
             header.put(CID);
-            System.out.println(header.remaining());
             header.put(adr);
-            System.out.println(header.remaining());
             header.put(port);
-            System.out.println(header.remaining());
             header.put(TTL);
-            System.out.println(header.remaining());
             header.flip();
-//            System.arraycopy(CID, 0, header, 0, CID.length);
-//            System.arraycopy(adr, 0, header, 16, adr.length);
-//            System.arraycopy(port, 0, header, 20, port.length);
-//            System.arraycopy(TTL, 0, header, 22, TTL.length);
-            return  header;
-//            byte[] temp = new byte[23+payload.length];
-//            System.arraycopy(header, 0, temp, 0, header.length);
-//            System.arraycopy(payload, 0, temp, 185, payload.length);
-//            return temp;
+            byte[] rtVal = new byte[header.remaining()];
+            header.get(rtVal);
+            //System.out.println("header :"+rtVal);
+            return rtVal;
         }
 
 
-        public static ByteBuffer CH_AND_PA(InetAddress Des_IP,short d_port, byte[] payload) {
+        public static byte[] APPEND_3HEADER(InetAddress Des_IP,short des_port) {
             ByteBuffer output = ByteBuffer.allocate(1024);
-            byte[] d_b_address = Des_IP.getAddress();
-            byte[] d_b_port = ByteBuffer.allocate(2).putShort(d_port).array();
-            output = make_header(d_b_address,d_b_port);    //第一層
-            ArrayList<byte[]> SEK_list = new ArrayList<byte[]>(3);    //存放的3把key
+            ArrayList<byte[]> SEK_list = new ArrayList<byte[]>(3);    //存放的3把SEK
             //生random出來
             int now_size = relay_list.size();
-            for (int a = 0; a < rand_array.length; ++a) {    //生3個random出來
+            for (int a = 0; a < rand_array.length; ++a) {    //生3個random出來 放在rand_array
                 rand_array[a] = (int) (Math.random() * now_size);
             }
             for (int i = 0; i < 3; i++) {    //生成三把SEK
@@ -98,78 +98,86 @@ public class main {
             }
             //開始包header
             for (int i = 0; i < 2; i++) {
-                RelayInfo temp = relay_list.get(rand_array[i]);
-                System.out.println(temp);
-                short port = (short)temp.address.getPort();
-                InetAddress t_addr = temp.address.getAddress();
-
-                System.out.println(t_addr);
-                byte[] b_address = t_addr.getAddress();    //IPv4 32-bits
-                byte[] b_port = ByteBuffer.allocate(2).putShort(port).array();    //port 16-bytes
-                output = make_header(b_address,b_port);
-                //call詠翔function
+                RelayInfo relay = relay_list.get(rand_array[i]);
+                //System.out.println(temp);
+                short relay_port = (short)relay.address.getPort();
+                InetAddress relay_address = relay.address.getAddress();
+                byte[] b_address = relay_address.getAddress();    //IPv4 32-bits
+                byte[] b_port = ByteBuffer.allocate(2).putShort(relay_port).array();    //port 16-bytes
+                byte[] bf = make_header(b_address,b_port);
+                //System.out.println("bf :"+bf);
+                output.put(bf);
+                //call iftnt function
 
             }
-            return output;
+            byte[] des_b_address = Des_IP.getAddress();
+            byte[] des_b_port = ByteBuffer.allocate(2).putShort(des_port).array();
+            byte[] bf = make_header(des_b_address,des_b_port);
+            output.put(bf);
+            output.flip();
+            byte[] rtVal = new byte[output.remaining()];
+            output.get(rtVal);
+            return rtVal;
         }
     }
 
-
-
-    ////加入的
+    //reference
     class SocksClient {
         SocketChannel client, remote;
         boolean connected;
         int state = 0;
-
 
         SocksClient(SocketChannel c) throws IOException {
             client = c;
             client.configureBlocking(false);
 
         }
-
         public void newRemoteData(Selector selector, SelectionKey sk) throws IOException {
-            ByteBuffer buf = ByteBuffer.allocate(4096);
-            if (remote.read(buf) == -1)
-                throw new IOException("disconnected");
-
+            ByteBuffer buf = ByteBuffer.allocate(1024);
+            //System.out.println("in remote");
+            if (remote.read(buf) < 1)
+                return;
+//            while ((buf.get()) != 0){
+//                buf.get(payload,4,500);
+//            }
+//
             buf.flip();
-            client.write(buf);
+            byte[] test = new byte[buf.remaining()];
+            buf.get(test);
+
+            System.out.println("buf.remaining : "  + bytesToHex(test));
+            client.write(ByteBuffer.wrap(test));
         }
 
         public void newClientData(Selector selector, SelectionKey sk) throws IOException {
             if (!connected) {
-                ByteBuffer inbuf = ByteBuffer.allocate(512);
+                ByteBuffer inbuf = ByteBuffer.allocate(4096);
                 if (client.read(inbuf) < 1)
                     return;
                 inbuf.flip();
                 // read socks header
                 int ver = inbuf.get() & 0xFF;
-                System.out.println(ver);
                 if (ver != 4) {
                     throw new IOException("incorrect version" + ver);
                 }
                 int cmd = inbuf.get();
-                System.out.println(cmd);
                 // check supported command
                 if (cmd != 1) {
                     throw new IOException("incorrect version");
                 }
 
-                final short port = inbuf.getShort();
-                System.out.println("port " + port);
+                final short des_port = inbuf.getShort();    //
+                System.out.println("des_port : " + des_port);
                 final byte ip[] = new byte[4];
                 // fetch IP
                 inbuf.get(ip);
+                System.out.println();
                 System.out.println("IP "+InetAddress.getByAddress(ip));
-                System.out.println("Guggic");
                 InetAddress remoteAddr = InetAddress.getByAddress(ip);
-                System.out.println(inbuf);
-                byte[] payload = new byte[512];
-                while ((inbuf.get()) != 0){
-                    inbuf.get(payload,4,500);
-                } ; // username
+//                byte[] payload = new byte[512];
+//                while ((inbuf.get()) != 0){
+//                    inbuf.get(payload,4,500);
+//                } ; // username
 
                 // hostname provided, not IP
                 if (ip[0] == 0 && ip[1] == 0 && ip[2] == 0 && ip[3] != 0) { // host provided
@@ -179,27 +187,42 @@ public class main {
                         host += b;
                     }
                     remoteAddr = InetAddress.getByName(host);
-                    System.out.println(host + remoteAddr);
-                }
-                System.out.println("I m in,2");
-                    //to do
-                ByteBuffer ttemp = ByteBuffer.allocate(1024);
-                ttemp = CHAAAAA.CH_AND_PA(remoteAddr,port,payload);
-                int first = CHAAAAA.get_three();
-                remote = SocketChannel.open(new InetSocketAddress(90));
-                System.out.println("Relayyyyyyyyyyyyyyy");
+                }    //get des IP
 
-                ByteBuffer out = ByteBuffer.allocate(4096);
-                out.put(payload);
-                ttemp.flip();
-                if(state == 0) {
-                    client.write(ttemp);
-                    state = 1;
-                }
-                client.write(out);
 
-                if (!remote.isConnected())
-                    throw new IOException("connect failed");
+                //ByteBuffer Send_header = ByteBuffer.allocate(1024);    //要送出的header
+                byte[] combinedHeader = header_combine.APPEND_3HEADER(remoteAddr,des_port);
+                ByteBuffer Send_header = ByteBuffer.wrap(combinedHeader);
+                Send_header.put(combinedHeader);
+                Send_header.flip();
+                int first_relay_index = header_combine.get_three();    //取得要連線的first_relay
+                remote = SocketChannel.open(new InetSocketAddress(relay_list.get(first_relay_index).address.getAddress(), relay_list.get(first_relay_index).address.getPort()));
+                System.out.println("toRelay");
+
+                //ByteBuffer out_payload = ByteBuffer.wrap(payload);    //要傳出的payload
+
+                //f(state == 0) {
+                    remote.write(Send_header);
+                //    state = 1;
+                    System.out.println("HEARED SEND DONE" + Send_header);
+               // }
+
+//                out_payload.put(payload);
+//                out_payload.flip();
+                //remote.write(out_payload);
+                //System.out.println("Payload send done" + bytesToHex(payload));
+//                if (!remote.isConnected())
+//                    throw new IOException("connect failed");
+
+                ByteBuffer responseToClient = ByteBuffer.allocate(8);
+                responseToClient.put(new Integer(0).byteValue());
+                responseToClient.put(new Integer(90).byteValue());
+                responseToClient.putShort(des_port);
+                responseToClient.put(ip);
+
+                responseToClient.flip();
+                client.write(responseToClient);
+
 
                 remote.configureBlocking(false);
                 remote.register(selector, SelectionKey.OP_READ);
@@ -207,11 +230,18 @@ public class main {
                 connected = true;
             } else {
                 ByteBuffer buf = ByteBuffer.allocate(1024);
-                if (client.read(buf) == -1)
-                    throw new IOException("disconnected");
+                if (client.read(buf) < 1){
+                    return;
+                }
 
                 buf.flip();
-                remote.write(buf);
+
+                byte[] test = new byte[buf.remaining()];
+                buf.get(test);
+
+                System.out.println("buf.remaining : "  + bytesToHex(test));
+
+                remote.write(ByteBuffer.wrap(test));
             }
         }
     }
@@ -255,17 +285,17 @@ public class main {
 
                 // new connection?
                 if (k.isAcceptable() && k.channel() == socks) {
-                    System.out.println("HAHAHA YOU　got it");
+//                    System.out.println("isAcceptable");
                     // server socket
                     SocketChannel csock = socks.accept();
                     if (csock == null)
                         continue;
                     addClient(csock);
-                    System.out.println("HAHAHA YOU　add it");
                     csock.register(select, SelectionKey.OP_READ);
 
                 } else if (k.isReadable()) {
-                    System.out.println(k.channel());
+//                    System.out.println("isreadtable");
+//                    System.out.println(k.channel());
                     // new data on a client/remote socket
                     for (int i = 0; i < clients.size(); i++) {
                         SocksClient cl = clients.get(i);
@@ -289,7 +319,7 @@ public class main {
 
 
             if (clients.size() != lastClients) {
-                System.out.println(clients.size());
+                System.out.println("now client size :"+ clients.size());
                 lastClients = clients.size();
             }
         }
